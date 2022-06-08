@@ -2,6 +2,7 @@
 #define __SERIALIZE__H__
 
 #define SERIALIZE_BUFFER_DEFAULT_SIZE 512
+//序列化数据缓冲区
 typedef struct {
     void *buf;
     int size;
@@ -23,13 +24,13 @@ void copy_in_serialized_buffer_by_offset(serialized_buffer_t *sbuf, int size, ch
 void serialize_data(serialized_buffer_t *sbuf, char *data, int val_size);
 void de_serialize_data(char *dest, serialized_buffer_t *sbuf, int val_size);
 
-/* free Resourse*/
+/* 释放资源*/
 void free_serialize_buffer(serialized_buffer_t *sbuf);
 
-/*reset function*/
+/*重置*/
 void truncate_serialize_buffer(serialized_buffer_t **sbuf);
 void reset_serialize_buffer(serialized_buffer_t *sbuf);
-/* Details*/
+/* 信息*/
 void print_buffer_details(serialized_buffer_t *sbuf, const char *fn, int lineno);
 
 #endif
