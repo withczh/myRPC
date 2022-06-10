@@ -2,12 +2,24 @@
 #define __SERIALIZE__H__
 
 #define SERIALIZE_BUFFER_DEFAULT_SIZE 512
+
+#define ADD_ID 1
+#define SUB_ID 2
+#define MULTIPLY_ID 3 
+#define DIV_ID 4
+
 //序列化数据缓冲区
 typedef struct {
     void *buf;
     int size;
     int next;
 } serialized_buffer_t;
+
+/*标识*/
+typedef struct {
+    unsigned int rpc_id;
+    unsigned int pay_load_size;
+}rpc_hdr_t;
 
 /*初始化序列缓冲区*/
 void init_serialized_buffer(serialized_buffer_t **sbuf);

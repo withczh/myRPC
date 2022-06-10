@@ -1,9 +1,55 @@
 #include "serialize.h"
 #include "common.h"
 
+int add(int a,int b)
+{
+    return a+b;
+}
+int sub(int a,int b)
+{
+    return a-b;
+}
 int multiply(int a,int b)
 {
     return a*b;
+}
+int division(int a,int b)
+{
+    return a/b;
+}
+
+int add_server_stub_unmarshal(serialized_buffer_t *server_recv_ser_buffer)
+{
+
+    int a , b;
+    de_serialize_data((char *)&a, server_recv_ser_buffer, sizeof(int));   
+    de_serialize_data((char *)&b, server_recv_ser_buffer, sizeof(int));
+
+    /*步骤 6  : 调用远程的实际方法*/
+    return add(a, b);
+}
+
+void add_server_stub_marshal(int res, serialized_buffer_t *server_send_ser_buffer)
+{
+
+    serialize_data(server_send_ser_buffer, (char *)&res, sizeof(int));
+}
+
+int sub_server_stub_unmarshal(serialized_buffer_t *server_recv_ser_buffer)
+{
+
+    int a , b;
+    de_serialize_data((char *)&a, server_recv_ser_buffer, sizeof(int));   
+    de_serialize_data((char *)&b, server_recv_ser_buffer, sizeof(int));
+
+    /*步骤 6  : 调用远程的实际方法*/
+    return sub(a, b);
+}
+
+void sub_server_stub_marshal(int res, serialized_buffer_t *server_send_ser_buffer)
+{
+
+    serialize_data(server_send_ser_buffer, (char *)&res, sizeof(int));
 }
 
 int multiply_server_stub_unmarshal(serialized_buffer_t *server_recv_ser_buffer)
@@ -23,6 +69,23 @@ void multiply_server_stub_marshal(int res, serialized_buffer_t *server_send_ser_
     serialize_data(server_send_ser_buffer, (char *)&res, sizeof(int));
 }
 
+int div_server_stub_unmarshal(serialized_buffer_t *server_recv_ser_buffer)
+{
+
+    int a , b;
+    de_serialize_data((char *)&a, server_recv_ser_buffer, sizeof(int));   
+    de_serialize_data((char *)&b, server_recv_ser_buffer, sizeof(int));
+
+    /*步骤 6  : 调用远程的实际方法*/
+    return division(a, b);
+}
+
+void div_server_stub_marshal(int res, serialized_buffer_t *server_send_ser_buffer)
+{
+
+    serialize_data(server_send_ser_buffer, (char *)&res, sizeof(int));
+}
+
 void rpc_server_process_msg(serialized_buffer_t *server_recv_ser_buffer,serialized_buffer_t *server_send_ser_buffer)
 {
 
@@ -31,10 +94,33 @@ void rpc_server_process_msg(serialized_buffer_t *server_recv_ser_buffer,serializ
     *  Unmarshalling of Arguments*/
     /* Unmarshalling of Arguments is done here. Reconstruct the Arguments*/
 
-   int res = multiply_server_stub_unmarshal(server_recv_ser_buffer); 
+    rpc_hdr_t rpc_hdr;
+    de_serialize_data((char*)&rpc_hdr.rpc_id,server_recv_ser_buffer,sizeof(rpc_hdr.rpc_id));
+    de_serialize_data((char*)&rpc_hdr.pay_load_size,server_recv_ser_buffer,sizeof(rpc_hdr.pay_load_size));
 
-   /*步骤 7 : Now we have got the RPC result, time to serialize/Marshall the result*/
-   multiply_server_stub_marshal(res, server_send_ser_buffer);
+    /*步骤 7 : Now we have got the RPC result, time to serialize/Marshall the result*/
+    int res=0;
+    switch (rpc_hdr.rpc_id)
+    {
+    case ADD_ID:
+        res = add_server_stub_unmarshal(server_recv_ser_buffer);
+        add_server_stub_marshal(res,server_send_ser_buffer);
+        break;
+    case SUB_ID:
+        res = sub_server_stub_unmarshal(server_recv_ser_buffer);
+        sub_server_stub_marshal(res,server_send_ser_buffer);
+        break;
+    case MULTIPLY_ID:
+        res = multiply_server_stub_unmarshal(server_recv_ser_buffer); 
+        multiply_server_stub_marshal(res, server_send_ser_buffer);
+        break;
+    case DIV_ID:
+        res = div_server_stub_unmarshal(server_recv_ser_buffer);
+        div_server_stub_marshal(res,server_send_ser_buffer);
+        break;    
+    default:
+        break;
+    }
 }
 
 int main(int argc, char **argv)
@@ -97,7 +183,7 @@ int main(int argc, char **argv)
                            server_send_ser_buffer); /*Empty serialized buffer*/
 
         /*步骤 8 : Send the serialized result data back to client*/
-	    len = sendto(sock_udp_fd, server_send_ser_buffer->buf,get_serialize_buffer_data_size(server_send_ser_buffer),0, (struct sockaddr *)&client_addr, sizeof(struct sockaddr));
+	    len = sendto(sock_udp_fd, server_send_ser_buffer->buf,get_serialize_buffer_size(server_send_ser_buffer),0, (struct sockaddr *)&client_addr, sizeof(struct sockaddr));
 
 	    printf("rpc server replied with %d bytes msg\n", len);
     }
