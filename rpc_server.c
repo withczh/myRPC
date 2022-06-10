@@ -126,36 +126,43 @@ void rpc_server_process_msg(serialized_buffer_t *server_recv_ser_buffer,serializ
 int main(int argc, char **argv)
 {
 
-	int sock_udp_fd = 0, len, addr_len, opt = 1,reply_msg_size = 0;
+	int listenfd = 0,confd=0, len, addr_len, opt = 1,reply_msg_size = 0;
          
 	struct sockaddr_in server_addr,client_addr;
+    socklen_t client_len;
 
-    if ((sock_udp_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP )) == -1)
+    if ((listenfd = socket(AF_INET, SOCK_STREAM, 0 )) == -1)
     {
         perror("socket creation failed\n");
         exit(1);
     }
-
+    bzero(&server_addr,sizeof(server_addr));
      server_addr.sin_family = AF_INET;
      server_addr.sin_port = htons(SERVER_PORT);
      server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-     addr_len = sizeof(struct sockaddr);
+     client_len = sizeof(client_addr);
 
-	if (setsockopt(sock_udp_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt))<0)
+	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt))<0)
 	{
 		perror("setsockopt");
 		exit(EXIT_FAILURE);
 	}
-	if (setsockopt(sock_udp_fd, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(opt))<0)
+	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEPORT, (char *)&opt, sizeof(opt))<0)
 	{
 		perror("setsockopt");
 		exit(EXIT_FAILURE);
 	}
 
-    if (bind(sock_udp_fd, (struct sockaddr *)&server_addr, sizeof(struct sockaddr)) == -1)
+    if (bind(listenfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
     {
         perror("socket bind failed\n");
         exit(1);
+    }
+
+    if(listen(listenfd,5)==-1)
+    {
+        perror("listen failed");
+        exit(EXIT_FAILURE);
     }
 
     /*Prepare Server Memory buffers to send and Recieve serialized Data*/
@@ -173,7 +180,14 @@ int main(int argc, char **argv)
         reset_serialize_buffer(server_recv_ser_buffer);
 
         /*步骤 4 : Recieve the Data from client in local buffer*/
-        len = recvfrom(sock_udp_fd, server_recv_ser_buffer->buf,get_serialize_buffer_length(server_recv_ser_buffer),0,(struct sockaddr *)&client_addr, &addr_len);
+        confd=accept(listenfd,(struct sockaddr*)&client_addr,&client_len);
+        if(confd<0)
+        {
+            perror("accept failed");
+            exit(EXIT_FAILURE);
+        }
+        printf("connected client's info:[%s:%d]\n",inet_ntoa(client_addr.sin_addr),ntohs(client_addr.sin_port));
+        len = recv(confd, server_recv_ser_buffer->buf,get_serialize_buffer_length(server_recv_ser_buffer),0);
         printf("rpc server received with %d bytes msg\n", len);
 
         /*prepare the buffer to store the reply msg to be sent to client*/
@@ -183,9 +197,9 @@ int main(int argc, char **argv)
                            server_send_ser_buffer); /*Empty serialized buffer*/
 
         /*步骤 8 : Send the serialized result data back to client*/
-	    len = sendto(sock_udp_fd, server_send_ser_buffer->buf,get_serialize_buffer_size(server_send_ser_buffer),0, (struct sockaddr *)&client_addr, sizeof(struct sockaddr));
+	    reply_msg_size = send(confd, server_send_ser_buffer->buf,get_serialize_buffer_size(server_send_ser_buffer),0);
 
-	    printf("rpc server replied with %d bytes msg\n", len);
+	    printf("rpc server replied with %d bytes msg\n", reply_msg_size);
     }
 	return 0;
 }

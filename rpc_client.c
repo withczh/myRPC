@@ -8,23 +8,28 @@ void rpc_send_recv (serialized_buffer_t *client_send_ser_buffer,serialized_buffe
     int sockfd = 0, rc = 0, recv_size = 0;
     int addr_len;
 
-    dest.sin_family = AF_INET;
-    dest.sin_port = htons(SERVER_PORT);
-    struct hostent *host = (struct hostent *)gethostbyname(SERVER_IP);
-    dest.sin_addr = *((struct in_addr *)host->h_addr);
-    addr_len = sizeof(struct sockaddr);
-
-    sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd == -1){
         perror("socket creation failed\n");
         return;
     }
+    bzero(&dest,sizeof(dest));
+    dest.sin_family = AF_INET;
+    dest.sin_port = htons(SERVER_PORT);
+    inet_pton(AF_INET,SERVER_IP,&dest.sin_addr);    
+    addr_len = sizeof(struct sockaddr);
 
-    rc = sendto(sockfd, client_send_ser_buffer->buf,get_serialize_buffer_size(client_send_ser_buffer),0,(struct sockaddr *)&dest, sizeof(struct sockaddr));
+    if(connect(sockfd,(struct sockaddr*)&dest,addr_len)==-1)
+    {
+        perror("connect failed");
+        exit(EXIT_FAILURE);
+    }
+    printf("connect success,ready to call..\n");
+    rc = send(sockfd, client_send_ser_buffer->buf,get_serialize_buffer_size(client_send_ser_buffer),0);
 
     printf("%s() : %d bytes sent\n", __FUNCTION__, rc);
 
-    recv_size = recvfrom(sockfd, client_recv_ser_buffer->buf,get_serialize_buffer_length(client_recv_ser_buffer), 0,(struct sockaddr *)&dest, &addr_len);
+    recv_size = recv(sockfd, client_recv_ser_buffer->buf,get_serialize_buffer_length(client_recv_ser_buffer),0);
 
     printf("%s() : %d bytes recieved\n", __FUNCTION__, recv_size);
 }
