@@ -15,7 +15,7 @@ typedef struct {
     int next;
 } serialized_buffer_t;
 
-/*标识*/
+/*标识头*/
 typedef struct {
     unsigned int rpc_id;
     unsigned int pay_load_size;
